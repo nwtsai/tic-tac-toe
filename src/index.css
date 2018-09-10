@@ -11,6 +11,15 @@ ul li {
 	list-style-type: none;
 }
 
+#dimension-label: {
+	margin-left: 10px;
+}
+
+#dimension {
+	margin-top: 5px;
+	margin-bottom: 30px;
+}
+
 .board-row:after {
 	clear: both;
 	content: "";

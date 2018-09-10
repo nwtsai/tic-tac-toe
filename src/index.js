@@ -2,6 +2,9 @@ import React from "react";
 import ReactDOM from "react-dom";
 import "./index.css";
 
+const DIMENSION_MIN = 3;
+const DIMENSION_MAX = 45;
+
 function Square(props) {
 	return (
 		<button
@@ -23,23 +26,25 @@ function Board(props) {
 		);
 	}
 
+	var board = [];
+	const dimension = props.dimension;
+	for (var row = 0; row < dimension * dimension; row += dimension) {
+		var boardRow = [];
+		for (var col = row; col < row + dimension; col++) {
+			boardRow.push(
+				renderSquare(col)
+			);
+		}
+		board.push(
+			<div className="board-row">
+				{boardRow}
+			</div>
+		);
+	}
+
 	return (
 		<div>
-			<div className="board-row">
-				{renderSquare(0)}
-				{renderSquare(1)}
-				{renderSquare(2)}
-			</div>
-			<div className="board-row">
-				{renderSquare(3)}
-				{renderSquare(4)}
-				{renderSquare(5)}
-			</div>
-			<div className="board-row">
-				{renderSquare(6)}
-				{renderSquare(7)}
-				{renderSquare(8)}
-			</div>
+			{board}
 		</div>
 	);
 }
@@ -48,9 +53,11 @@ class Game extends React.Component {
 	constructor(props) {
 		super(props);
 		this.state = {
+			dimension: DIMENSION_MIN,
 			history: [
 				{
-					squares: Array(9).fill(null)
+					squares: Array(DIMENSION_MIN * DIMENSION_MIN).fill(null),
+					winState: Array(DIMENSION_MIN * 2 + 2).fill(0),
 				}
 			],
 			turn: "X",
@@ -58,22 +65,15 @@ class Game extends React.Component {
 		};
 	}
 
-	handleClick(i) {
-		const history = this.state.history.slice(0, this.state.step + 1);
-		const current = history[history.length - 1];
-		const squares = current.squares.slice();
-		if (calculateWinner(squares) || squares[i]) {
-			return;
+	calculateWinner(dimension, winState) {
+		for (var i = 0; i < winState.length; i++) {
+			if (winState[i] === dimension) {
+				return 'X';
+			} else if (winState[i] === -1 * dimension) {
+				return 'O';
+			}
 		}
-		const turn = this.state.turn;
-		squares[i] = turn;
-		this.setState({
-			history: history.concat([{
-				squares: squares
-			}]),
-			turn: turn === "X" ? "O" : "X",
-			step: history.length
-		});
+		return null;
 	}
 
 	jumpTo(step) {
@@ -83,18 +83,75 @@ class Game extends React.Component {
 		});
 	}
 
+	updateDimension(evt) {
+		var dimension = Number(evt.target.value);
+		this.setState({
+			dimension: dimension,
+			history: [
+				{
+					squares: Array(dimension * dimension).fill(null),
+					winState: Array(dimension * 2 + 2).fill(0)
+				}
+			],
+			turn: "X",
+			step: 0
+		});
+	}
+
+	updateWinState(i, dimension, turn, winState) {
+		let row = Math.floor(i / dimension);
+		let col = i % dimension;
+		let diag1 = row === col;
+		let diag2 = row + col === dimension - 1;
+
+		let point = 0;
+		if (turn === "X") {
+			point = 1;
+		} else if (turn === 'O') {
+			point = -1;
+		}
+		winState[row] += point;
+		winState[dimension + col] += point;
+		if (diag1 === true) {
+			winState[dimension * 2] += point;
+		}
+		if (diag2 === true) {
+			winState[dimension * 2 + 1] += point;
+		}
+		return winState;
+	}
+
+	handleClick(i, dimension, history, turn, step, squares, winState) {
+		history = history.slice(0, step + 1);
+		if (this.calculateWinner(dimension, winState) || squares[i]) {
+			return;
+		}
+		squares[i] = turn;
+		this.setState({
+			history: history.concat([{
+				squares: squares,
+				winState: this.updateWinState(i, dimension, turn, winState)
+			}]),
+			turn: turn === "X" ? "O" : "X",
+			step: history.length
+		});
+	}
+
 	render() {
-		// Shallow copies of current state
+		const dimension = this.state.dimension;
 		const history = this.state.history.slice();
 		const turn = this.state.turn;
 		const step = this.state.step;
 
-		// Deciding which step to show
-		const boardAtStep = history[step];
-		const squares = boardAtStep.squares.slice();
-		const winner = calculateWinner(squares);
+		// Showing the board state at a specified point in time
+		const squares = history[step].squares.slice();
+		const winState = history[step].winState.slice();
 
-		// A list of all the moves made so far
+		// Defining the right game status
+		const winner = this.calculateWinner(dimension, winState);
+		const status = winner ? "Winner: " + winner : "Next player: " + turn;
+
+		// Listing out all past moves
 		const moves = history.map((board, step) => {
 			const label = step ? "Go to move #" + step : "Go to game start";
 			return (
@@ -105,17 +162,25 @@ class Game extends React.Component {
 				</li>
 			);
 		});
-		
-		let status = winner ? "Winner: " + winner : "Next player: " + turn;
 
 		return (
 			<div>
-				<h2>Tic Tac Toe</h2>
+				<h1>Tic Tac Toe</h1>
+				<div id="dimension-label">Dimension: {dimension}</div>
+				<input
+					value={dimension}
+					onChange={(evt) => this.updateDimension(evt)}
+					id="dimension"
+					type="range"
+					min={DIMENSION_MIN}
+					max={DIMENSION_MAX}
+				/>
 				<div className="game">
 					<div className="game-board">
 						<Board
+							dimension={dimension}
 							squares={squares}
-							onClick={(i) => this.handleClick(i)}
+							onClick={(i) => this.handleClick(i, dimension, history, turn, step, squares, winState)}
 						/>
 					</div>
 					<div className="game-info">
@@ -126,26 +191,6 @@ class Game extends React.Component {
 			</div>
 		);
 	}
-}
-
-function calculateWinner(squares) {
- 	const lines = [
-		[0, 1, 2],
-		[3, 4, 5],
-		[6, 7, 8],
-		[0, 3, 6],
-		[1, 4, 7],
-		[2, 5, 8],
-		[0, 4, 8],
-		[2, 4, 6],
-	];
-	for (let i = 0; i < lines.length; i++) {
-		const [a, b, c] = lines[i];
-		if (squares[a] && squares[a] === squares[b] && squares[a] === squares[c]) {
-			return squares[a];
-		}
-	}
-	return null;
 }
 
 // ========================================
