@@ -8,6 +8,9 @@ Features:
 * Keep track of whose turn it is
 
 ## Screenshots
+![3x3](https://i.imgur.com/0oCedwh.png)
+![7x7](https://i.imgur.com/Qigqh8X.png)
+![6x6](https://i.imgur.com/q7hbXDY.png)
 
 ## Dependencies
 * react => 16.5.0
